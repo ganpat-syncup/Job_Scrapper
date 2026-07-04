@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 scrape_all.py
-Scrape latest jobs from Internshala + Naukri + Indeed with NO role/location/salary
+Scrape latest jobs from Internshala + Naukri + Indeed + LinkedIn with NO role/location/salary
 filters (any/any), merge all unique jobs, import into SyncUp.
 
 Usage:
@@ -32,6 +32,7 @@ SCRAPERS = [
     ("internshala_scraper.py", "internshala_jobs.json", "Internshala"),
     ("naukri_scraper.py", "naukri_jobs.json", "Naukri"),
     ("indeed_scraper.py", "indeed_jobs.json", "Indeed"),
+    ("linkedin_scraper.py", "linkedin_jobs.json", "LinkedIn"),
 ]
 
 SCRAPER_INPUT = "any\nany\nn\n"

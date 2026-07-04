@@ -1,6 +1,6 @@
 # SyncUp Job Scraper
 
-Scrapes **Naukri**, **Indeed**, **Internshala** → imports into SyncUp `ExternalJob` → shows on `/findjobs/search`.
+Scrapes **Naukri**, **Indeed**, **Internshala**, **LinkedIn** → imports into SyncUp `ExternalJob` → shows on `/findjobs/search`.
 
 ---
 
@@ -23,6 +23,13 @@ Open: http://localhost:3000/findjobs/search
 ```bash
 export PYTHON=py
 ./scrape_all.sh
+```
+
+**LinkedIn only (often needs cookie):**
+```bash
+export LINKEDIN_LI_AT="your_li_at_cookie_value"
+printf "any\nany\nn\n" | python linkedin_scraper.py
+python import_to_syncup.py linkedin_jobs.json
 ```
 
 ---
@@ -54,6 +61,16 @@ EXTERNAL_JOB_IMPORT_API_KEY=local-dev-import-key
 
 `scrape_all.sh` already uses `local-dev-import-key` — no `.env` file needed in Job_Scrapper.
 
+### 4. LinkedIn (optional but recommended)
+
+LinkedIn often blocks guest scraping. Export `li_at` cookie from a logged-in browser session:
+
+```bash
+export LINKEDIN_LI_AT="paste_cookie_here"
+```
+
+Add `LINKEDIN_LI_AT` as a GitHub secret for CI.
+
 ---
 
 ## SyncUp connection
@@ -74,11 +91,11 @@ Same `apply_url` = **update**, new URL = **insert**.
 
 ## What `scrape_all.sh` does
 
-1. Scrape Internshala + Naukri + Indeed (`any` / `any`)
+1. Scrape Internshala + Naukri + Indeed + LinkedIn (`any` / `any`)
 2. Merge → `merged_jobs_import.json`
 3. Import to SyncUp
 
-~80 jobs typical (one page per site).
+~80–100+ jobs typical (one page per site). LinkedIn may return 0 without `LINKEDIN_LI_AT`.
 
 ---
 
@@ -86,17 +103,17 @@ Same `apply_url` = **update**, new URL = **insert**.
 
 **One source + filters**
 ```bash
-printf "software\nbangalore\nn\n" | python internshala_scraper.py
+printf "software\nbangalore\nn\n" | python naukri_scraper.py
 export SYNCUP_IMPORT_API_KEY=local-dev-import-key
 export SYNCUP_IMPORT_URL=http://localhost:6001/api/job-service/job/external/import
-python import_to_syncup.py internshala_jobs.json
+python import_to_syncup.py naukri_jobs.json
 ```
 
 **One source + dedup (CI style)**
 ```bash
-printf "any\nany\nn\n" | python naukri_scraper.py
-python dedup_filter.py naukri
-python import_to_syncup.py naukri_jobs_new.json
+printf "any\nany\nn\n" | python linkedin_scraper.py
+python dedup_filter.py linkedin
+python import_to_syncup.py linkedin_jobs_new.json
 ```
 
 ---
@@ -105,6 +122,7 @@ python import_to_syncup.py naukri_jobs_new.json
 
 - Cron: every 4 hours — `.github/workflows/scrape.yml`
 - Secrets: `SYNCUP_IMPORT_URL`, `SYNCUP_IMPORT_API_KEY`
+- Optional: `LINKEDIN_LI_AT`, `LINKEDIN_JSESSIONID`
 
 ---
 
@@ -115,6 +133,7 @@ python import_to_syncup.py naukri_jobs_new.json
 | Python not found (Git Bash) | `export PYTHON=py` |
 | `401 Invalid API key` | Keys must match on scraper + job-service |
 | `401 No token provided` | Restart `make dev` |
+| LinkedIn 0 jobs | Set `LINKEDIN_LI_AT` cookie |
 | No jobs in UI | Log in, refresh `/findjobs/search` |
 
 ---
@@ -124,6 +143,7 @@ python import_to_syncup.py naukri_jobs_new.json
 | File | Role |
 |------|------|
 | `scrape_all.sh` / `scrape_all.py` | Run all sources + import |
+| `linkedin_scraper.py` | LinkedIn jobs |
 | `import_to_syncup.py` | POST jobs to SyncUp |
 | `dedup_filter.py` | Skip already-seen jobs (CI) |
 | `*_scraper.py` | Single source scrapers |

@@ -7,7 +7,7 @@ Also maintains a cumulative all-unique-jobs file — keeps growing with
 every unique job ever found, full details, no duplicates.
 
 Usage: python3 dedup_filter.py <source>
-  <source> is one of: internshala, naukri, indeed
+  <source> is one of: internshala, naukri, indeed, linkedin
 
 Reads:  <source>_jobs.json (this run's scrape)
 Reads/Writes: seen_jobs_<source>.json (persistent dedup memory, committed back to repo)

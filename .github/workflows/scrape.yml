@@ -220,3 +220,73 @@ jobs:
           git add seen_jobs_naukri.json all_unique_jobs_naukri.json
           git diff --staged --quiet || git commit -m "Update Naukri tracking files [skip ci]"
           git push
+
+
+  scrape-linkedin:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install playwright requests tf-playwright-stealth
+          playwright install chromium
+
+      - name: Run LinkedIn scraper
+        env:
+          HEADLESS: "true"
+          PYTHONIOENCODING: "utf-8"
+          SKIP_LOCAL_PUSH: "true"
+          LINKEDIN_LI_AT: ${{ secrets.LINKEDIN_LI_AT }}
+          LINKEDIN_JSESSIONID: ${{ secrets.LINKEDIN_JSESSIONID }}
+        run: |
+          ROLE="${{ github.event.inputs.role || 'any' }}"
+          LOCATION="${{ github.event.inputs.location || 'any' }}"
+          echo "Scraping LinkedIn role=$ROLE location=$LOCATION"
+          printf "${ROLE}\n${LOCATION}\nn\n" | python3 linkedin_scraper.py
+
+      - name: Filter out jobs already seen in previous runs
+        run: python3 dedup_filter.py linkedin
+
+      - name: Import new jobs into SyncUp
+        env:
+          SYNCUP_IMPORT_URL: ${{ secrets.SYNCUP_IMPORT_URL }}
+          SYNCUP_IMPORT_API_KEY: ${{ secrets.SYNCUP_IMPORT_API_KEY }}
+        run: |
+          if [ -f linkedin_jobs_new.json ]; then
+            python3 import_to_syncup.py linkedin_jobs_new.json
+          else
+            echo "No new linkedin jobs to import"
+          fi
+
+      - name: Upload only new jobs as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linkedin-jobs-new
+          path: linkedin_jobs_new.json
+
+      - name: Upload all unique jobs (cumulative) as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linkedin-all-unique-jobs
+          path: all_unique_jobs_linkedin.json
+
+      - name: Commit updated tracking files back to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git stash --include-untracked
+          git pull --rebase
+          git stash pop || true
+          git add seen_jobs_linkedin.json all_unique_jobs_linkedin.json
+          git diff --staged --quiet || git commit -m "Update LinkedIn tracking files [skip ci]"
+          git push
